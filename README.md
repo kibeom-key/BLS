@@ -14,14 +14,15 @@
     │   └── src
     │       └── main
     │           └── kotlin
-    │               └── AndroidXXXXXPlugin.kt
-    │               └── AndroidYYYYYPlugin.kt
+    │               └── AndroidHiltConventionPlugin.kt
+    │               └── AndroidApplicationComposeConventionPlugin.kt
+    │               └── ...
     ├── gradle
     │   └── wrapper
     │       ├── gradle-wrapper.jar
     │       └── gradle-wrapper.properties
     └── settings.gradle.kts
-</pre>
+    </pre>
 
 - settings.gradle.kts
     ~~~kotlin
@@ -30,7 +31,6 @@
             google()
             mavenCentral()
         }
-        // Version Catalog
         versionCatalogs {
             create("libs") {
                 from(files("../gradle/libs.versions.toml"))
@@ -66,9 +66,64 @@
                 id = "nowinandroid.android.application.compose"
                 implementationClass = "AndroidApplicationComposeConventionPlugin"
             }
+            register("androidHilt") {
+                id = "nowinandroid.android.hilt"
+                implementationClass = "AndroidHiltConventionPlugin"
+            }
 
             // ...
         }
     }
     ~~~
 
+## Custom Plugin Sample
+- AndroidHiltConventionPlugin
+    ~~~kotlin
+    class AndroidHiltConventionPlugin : Plugin<Project> {
+        override fun apply(target: Project) {
+              with(target) {
+                with(pluginManager) {
+                    apply("dagger.hilt.android.plugin")
+                    apply("org.jetbrains.kotlin.kapt")
+                }
+            }
+        }
+
+        val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
+        dependencies {
+            "implementation"(libs.findLibrary("hilt.android").get())
+            "kapt"(libs.findLibrary("hilt.compiler").get())
+            "kaptAndroidTest"(libs.findLibrary("hilt.compiler").get())
+        }
+    }
+    ~~~
+- libs.versions.toml
+    ~~~kotlin
+    [versions]
+    hilt = "2.44.2"
+
+    [libraries]
+    hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+    hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+
+    [plugins]
+    hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+    ~~~
+
+- settings.gradle.kts (project)
+    ~~~kotlin
+    pluginManagement {
+        includeBuild("build-logic")
+        ...
+    }
+    ~~~
+- build.gradle.kts (app)
+    ~~~kotlin
+    plugins {
+        id("nowinandroid.android.hilt")
+    }
+    ~~~
+
+## Reference site
+- [https://velog.io/@vov3616/Gradle-3.-Custom-Plugin-%EB%A7%8C%EB%93%A4%EA%B8%B0](https://velog.io/@vov3616/Gradle-3.-Custom-Plugin-%EB%A7%8C%EB%93%A4%EA%B8%B0)
+- [https://docs.gradle.org/current/userguide/custom_plugins.html#sec:packaging_a_plugin](https://docs.gradle.org/current/userguide/custom_plugins.html#sec:packaging_a_plugin)
